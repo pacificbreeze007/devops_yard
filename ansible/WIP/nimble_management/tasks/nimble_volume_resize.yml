@@ -1,0 +1,49 @@
+---
+- name: Ensure play variables are sane
+  fail:
+    msg: "Missing variable {{ item }}"
+  when: vars[item] is undefined
+  with_items:
+    - nimble_volume
+    - nimble_volume_size
+    - nimble_volume_mountpoint
+
+- name: Refresh group facts
+  include: nimble_group_facts.yml
+  vars:
+    nimble_group_facts:
+      volumes: "fields=name,id,serial_number&name={{ nimble_volume }}"
+
+- include: nimble_util_volume_id.yml
+
+- name: Set new volume size
+  uri:
+    url: "{{ nimble_group_url }}/volumes/{{ nimble_volume_id }}"
+    validate_certs: no
+    method: PUT
+    status_code: 200
+    body_format: json
+    body:
+      data:
+        id: "{{ nimble_volume_id }}"
+        size: "{{ nimble_volume_size }}"
+    headers:
+      X-Auth-Token: "{{ nimble_group_token }}"
+  retries: "{{ nimble_uri_retries }}"
+  delay: "{{ nimble_uri_delay }}"
+  register: nimble_volume_resized
+  until: nimble_volume_resized | success
+
+- include: nimble_util_volume_id.yml
+
+- name: Rescan
+  command: ncmadm --resize {{ nimble_volume_device_name }}
+
+- name: Resize nimble_volume
+  command: xfs_growfs {{ nimble_volume_mountpoint | quote }}
+
+- name: Refresh volumes
+  include: nimble_group_facts.yml
+  vars:
+    nimble_group_fact_refresh:
+      volumes:

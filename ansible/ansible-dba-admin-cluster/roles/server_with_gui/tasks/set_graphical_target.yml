@@ -1,0 +1,6 @@
+---
+- block:
+
+  - name: Set to Graphical Target.
+    command: systemctl set-default graphical.target
+...

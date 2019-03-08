@@ -1,0 +1,12 @@
+---
+- name: Ensure play variables are sane
+  fail:
+    msg: "Missing variable {{ item }}"
+  when: vars[item] is undefined
+  with_items:
+    - nimble_volume_mountpoint
+
+- name: Wipe fstab
+  mount:
+    name: "{{ nimble_volume_mountpoint }}"
+    state: absent

@@ -1,0 +1,100 @@
+---
+- name: Ensure play variables are sane
+  fail:
+    msg: "Missing variable {{ item }}"
+  when: vars[item] is undefined
+  with_items:
+    - nimble_volume
+
+- name: Host facts
+  include: nimble_host_facts.yml
+  when: nimble_host_facts is undefined and nimble_initiator_options is undefined
+
+- name: Refresh group facts
+  include: nimble_group_facts.yml
+  vars:
+    nimble_group_facts:
+      access_control_records: "fields=vol_name,initiator_group_name,id&vol_name={{ nimble_volume }}"
+      volumes: "fields=name,id,serial_number,target_name&name={{ nimble_volume }}"
+      initiator_groups: "fields=id&name={{ inventory_hostname_short }}"
+
+- block:
+
+  - include: nimble_util_device_name.yml 
+
+  - name: Dismantling data path
+    command: ncmadm --remove {{ nimble_volume_device_name }}
+    register: nimble_volume_removed
+    until: nimble_volume_removed.stdout.find('Done') != -1
+    retries: "{{ nimble_device_retries }}"
+    delay: "{{ nimble_device_delay }}"
+  
+  - name: Dismantling data path (forcefully)
+    command: ncmadm --remove --force {{ nimble_volume_device_name }}
+    args:
+      removes: "{{ nimble_volume_device_name }}"
+    
+  - name: Wait for device to disappear
+    wait_for:
+      path: "{{ nimble_volume_device_name }}"
+      state: absent
+      timeout: "{{ nimble_device_delay * nimble_device_retries }}"
+  when: nimble_host_protocol == 'iscsi' or nimble_host_protocol == 'fc' 
+ 
+- block: 
+  - name: Monitor volume connections
+    set_fact:
+        nimble_volume_id: "{{ nimble_group_facts.volumes[0].id }}"
+  - uri:
+      url: "{{ nimble_group_url }}/volumes/{{ nimble_volume_id }}"
+      validate_certs: no
+      method: GET
+      status_code: 200
+      headers:
+        X-Auth-Token: "{{ nimble_group_token }}"
+    retries: "{{ nimble_device_retries }}"
+    delay: "{{ nimble_device_delay }}"
+    register: nimble_volume_disconnected
+    when: nimble_volume_unmap_volume_connections == True
+    until: nimble_volume_disconnected.json.data.num_connections == 0
+  when: nimble_host_protocol == 'iscsi'
+
+- name: Determine ACR ID
+  set_fact:
+    nimble_volume_acr: "{{ nimble_group_facts | json_query(local_query) }}"
+  vars:
+    local_query: "access_control_records[?vol_name=='{{ nimble_volume }}' && initiator_group_name=='{{ inventory_hostname_short }}'].id | [0]"
+
+- name: Remove Accress Control Record
+  uri:
+    url: "{{ nimble_group_url }}/access_control_records/{{ nimble_volume_acr }}"
+    validate_certs: no
+    method: DELETE
+    status_code: 200
+    headers:
+      X-Auth-Token: "{{ nimble_group_token }}"
+  when: nimble_volume_acr is defined and nimble_volume_acr != ''
+  retries: "{{ nimble_uri_retries }}"
+  delay: "{{ nimble_uri_delay }}"
+  register: nimble_acr_deleted
+  until: nimble_acr_deleted | success
+
+- include: nimble_util_volume_id.yml
+
+- name: Offline nimble_volume
+  uri:
+    url: "{{ nimble_group_url }}/volumes/{{ nimble_volume_id }}?force=true"
+    validate_certs: no
+    method: PUT
+    status_code: 200
+    body_format: json
+    body:
+      data:
+        id: "{{ nimble_volume_id }}"
+        online: False
+    headers:
+      X-Auth-Token: "{{ nimble_group_token }}"
+  retries: "{{ nimble_uri_retries }}"
+  delay: "{{ nimble_uri_delay }}"
+  register: nimble_volume_offline
+  until: nimble_volume_offline | success

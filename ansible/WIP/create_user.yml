@@ -1,0 +1,41 @@
+---
+- name: Add a new user on Linux/UNIX Systems.
+  hosts: "{{ override_hosts | default('GC_SERVERS') }}"
+  become_user: root
+  become_method: sudo
+  become: true
+
+  environment:
+    PATH: '/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin'
+
+
+  vars:
+    user_attributes:
+       #Anitesh.Lal
+      -  name: aniteshl
+         uid: 100001
+         group: usa
+         comment: "Anitesh Lal - Unix Administrator"
+         password: abc4321
+         shell: /bin/bash
+      # Prithviraj.Jathan
+      -  name: pjathan
+         uid: 10002
+         group: usa
+         comment: "Prithviraj Jathan - Manager"
+         password: abc4321
+
+  tasks:
+    - name: Add a new user on Linux Systems.
+      user:
+        name: "{{ item.name }}"
+        group: usa
+        uid: "{{ item.uid }}"
+        comment: "{{ item.comment | default('') }}"
+        shell: "{{ item.shell | default('/bin/bash/') }}"
+        password: "{{ item.password | password_hash('sha512') }}"
+        state: present
+      tags: add_new_user
+      loop: "{{ user_attributes }}"
+
+...

@@ -1,0 +1,15 @@
+---
+- name: Execute GC Linux Patching playbook on a remote host.
+  hosts:  "{{ override_hosts | default('all') }}"
+  #hosts: localhost
+  become_method: sudo
+  become_user: root
+  become: true
+  gather_facts: true
+
+  #environment:
+    #PATH: '/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin'
+
+  roles:
+    - { role: linux_patching }
+...

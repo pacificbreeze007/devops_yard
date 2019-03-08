@@ -1,0 +1,78 @@
+---
+- name: Provision a VM from a template.
+  hosts: "{{ override_hosts | default('GCAP_SERVERS') }}" 
+  become_user: root
+  become_method: sudo
+  become: true
+  gather_facts: false
+
+#  vars_prompt:
+#    - name: "vcenter_hostname"
+#      prompt: "Enter vcenter hostname"
+#      private: no
+#      default: "phxvc1.domestic.guitarcenter.com"
+#    - name: "vcenter_user"
+#      prompt: "Enter vcenter username"
+#      private: no
+#      default: domestic\ADMALal
+#    - name: "vcenter_pass"
+#      prompt: "Enter vcenter password"
+#      private: yes
+
+#  vars_prompt:
+#    - name: "vcenter_hostname"
+#      prompt: "Enter vcenter hostname"
+#      private: no
+#      default: "vcenter.gcyard.com"
+#    - name: "vcenter_user"
+#      prompt: "Enter vcenter username"
+#      private: no
+#      default: administrator@vshpere.local
+#    - name: "vcenter_pass"
+#      prompt: "Enter vcenter password"
+#      private: yes
+
+  vars:
+    esxi_host: 'gap-esxi-001'
+    notes: 'VM Deployed by Ansible'
+
+  tasks:
+    - name: Create a virtual machine from a template.
+      vmware_guest:
+        hostname: vcenter.gcyard.com #"{{ vcenter_hostname }}"
+        username: ansible@vsphere.local #administrator@vshpere.local #"{{ vcenter_user }}"
+        password: '@nsibleUser1!' #'Hokett2105#'  #"{{ vcenter_pass }}"
+        validate_certs: no
+        datacenter: GCAP-DC
+        cluster: GCAP-CLUSTER # How do I find out what is my cluster.
+        folder: /ansible-unix-test
+        name: gap-rhl-005-ld
+        state: poweredon
+        is_template: yes
+        template: gap-rhl-tpl
+        #guest_id: rhel74_64
+# All these information will be gathered from the build sheet attached to the ticket.
+        networks:
+          - name: VM Network 
+            ip: 10.160.88.221
+            netmask: 255.255.255.0
+            gateway: 10.160.88.1
+        disk:
+          - size_gb: 85 
+            type: thin
+            datastore: GCAP-DATASTORE-1 #How do I find what what is my datastore?
+        hardware:
+          memory_mb: 2048
+          num_cpus: 2
+          scsi: lsilogic
+          hotadd_cpu: true
+          hotremove: true
+          hotadd_memory: true
+        customization:
+          domain: gcyard.com
+          dns_servers:
+            - 10.10.183.142
+            - 10.10.183.143
+      delegate_to: localhost
+      register: deploy
+...

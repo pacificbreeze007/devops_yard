@@ -1,0 +1,12 @@
+---
+user_attributes:
+  - Anitesh.Lal
+      name: aniteshl
+      uid: 100001
+      group: usa
+      comment: "Anitesh Lal - Unix Administrator"
+  - Prithviraj.Jathan
+      name: pjathan
+      uid: 10002
+      group: usa
+      comment: "Prithviraj Jathan - Manager"

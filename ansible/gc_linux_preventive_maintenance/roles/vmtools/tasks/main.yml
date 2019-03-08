@@ -1,0 +1,64 @@
+---
+- block: 
+    - name:  Gather any previous VMwareTools-*.tar.gz in /tmp.
+      shell: "for i in `ls -ltr  /tmp/ | grep -i VMwareTools-* |  awk '{print $9}'` ; do echo $i ; done"
+      register: vmware_tools
+      become: true
+      tags: gather_prev_vmware_tools_tar
+
+    - name: Delete any previous VMwareTools-*.tar.gz
+      file:
+        path: "/tmp/{{item}}"
+        state: absent
+      with_items: "{{ vmware_tools.stdout_lines }}"
+      become: true
+      tags: delete_prev_vmware_tools_tar
+
+    - name: Delete any previous vmware-tools-distrib directory before you install VMware Tools.
+      file:
+        path: /tmp/vmware-tools-distrib
+        state: absent
+      become: true
+      tags: delete_prev_vmware_tools_distrib_dir
+
+    - name: Check create the stage directory "{{ stage_dir }}"
+      file:
+        path: "{{ stage_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+        recurse: yes
+      become: true
+      ignore_errors: true
+      tags: create_stage_dir
+
+    - name: Unarchive the software way to "{{ stage_dir }}".
+      unarchive:
+        src: '{{tar_file}}'
+        dest: '{{stage_dir}}'
+      become: true
+      tags: unarchive_software
+
+    - name: Remove immutable flag on "/etc/fstab"
+      command: /bin/chattr -i /etc/fstab
+      args: 
+        chdir: /bin/
+      become: true
+      ignore_errors: true
+      tags: remove_immutable
+
+    - name: Run the vm tool update script.
+      command: "'{{ vm_tools_stage_dir }}/vmware-install.pl' --default"
+      args:
+        chdir: '{{ vm_tools_stage_dir }}/'
+      become: true
+      tags: run_vmtools_update_script
+
+    - name: Deleting the "{{ stage_dir }}"
+      file:
+        path:  "{{ stage_dir }}"
+        state: absent
+      become: true
+      tags: delete_stage_dir
+...

@@ -1,0 +1,9 @@
+---
+dependencies:
+   - {role: unmanage_node,       tags: [ 'unmanage_node' ] }
+   - {role: backup,              tags: [ 'snapshot' ] }
+   - {role: patchOS,             tags: [ 'patchOS' ] }
+   - {role: vmtools,             tags: [ 'vmtools' ] }
+   - {role: cleanup,             tags: [ 'cleanup' ] }
+   - {role: remanage_node,       tags: [ 'remanage_node' ] }
+
